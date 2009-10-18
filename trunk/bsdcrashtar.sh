@@ -349,7 +349,11 @@ run_kgdb;
 
 mkdir $TMPDIR/$CRASH
 
+ln -s `cat $TMPDIR/srcbase`/`uname -m`/include "$TMPDIR/$CRASH/machine"
+
 {
+    cat $TMPDIR/sources
+
     echo $VMCORE
     echo $INFO
 
@@ -358,11 +362,7 @@ mkdir $TMPDIR/$CRASH
 	echo $f.symbols
     done
 
-    cat $TMPDIR/sources
-
 } | cpio -pvd "$TMPDIR/$CRASH" 2>/dev/null
-
-ln -s `cat $TMPDIR/srcbase`/`uname -m`/include "$TMPDIR/$CRASH/machine"
 
 cat > "$TMPDIR/$CRASH/debug.sh" << EOF
 #!/bin/sh
