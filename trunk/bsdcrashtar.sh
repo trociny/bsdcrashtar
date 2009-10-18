@@ -59,15 +59,15 @@ CRASHDIR=/var/crash
 DUMPNR=
 VMCORE=
 KERNEL=
-MODULES=
 TARFILE=
-TMPFILE=
 TMPDIR=
 CRASH=
 
 #
 # Functions
 #
+
+# Print minihelp.
 
 usage()
 {
@@ -80,31 +80,29 @@ usage()
     echo "  -d <crashdir>   path to crash directory"
     echo "  -n <dumpnr>     dump number"
     echo "  -k <kernel>     path to kernel"
-    echo "  -m <modules>    space sepated paths of modules loaded at the moment of crash"
     echo "  -c <core>       path to core file"
     echo
     echo "  <crash.tar.gz>  path to tar file where files will be stored"
     echo
 }
 
-mk_tmpfiles () {
+# Create directory we will use for storing temporary files and
+# data. Set trap to remove it on exit.
 
-    if ! TMPFILE=`mktemp -t $PROGNAME`; then
-	echo "Can't create tmp file" >&2
-	exit 1
-    fi
+mk_tmpdir () {
 
     if ! TMPDIR=`mktemp -dt $PROGNAME`; then
 	echo "Can't create tmp directory" >&2
-	rm -f '$TMPFILE'
 	exit 1
     fi
-
+    
     chmod 0700 "$TMPDIR"
 
-    trap "rm -f '$TMPFILE'; rm -Rf '$TMPDIR'" INT QUIT EXIT
+    trap "rm -Rf '$TMPDIR'" INT QUIT EXIT
 
 }
+
+# Find kernel.
 
 find_kernel() {
 
@@ -137,73 +135,96 @@ find_kernel() {
     done
 }
 
-find_modules() {
+# Run kgdb and generate all info we need looking for files we want to
+# archive.
 
-    local file
+run_kgdb() {
 
-    # Find the loded modules parsing output that kgdb prints
-    # on start,  the lines like this one:
-    # Loaded symbols for /boot/kernel/ng_pptpgre.ko
-    > $TMPFILE
-    echo "quit" >> $TMPFILE
-    MODULES=`kgdb $KERNEL $VMCORE < $TMPFILE 2>/dev/null |
-             sed -nEe 's|^Loaded symbols for (/[^ ].*\.ko)$|\1|p'`
-    > $TMPFILE
-}
+    local nthr i
 
-print_sources() {
+    # We run kgdb redirecting its output to fifo and read this output
+    # to make a decision about the next command to run.
 
-    local file
+    mkfifo $TMPDIR/fifo
 
-    # Find the number of threads from output of kgdb "info threads"
-    > $TMPFILE
-    echo "info threads" >> $TMPFILE
-    echo "quit" >> $TMPFILE    
-    nthr=`kgdb $KERNEL $VMCORE < $TMPFILE 2>/dev/null |
-	  sed -nEe 's/^.* ([0-9]+ Thread [0-9]+).*$/\1/p' |
-	  awk '$1 > max {max = $1}
-                    END {print max}'`
+    {
+	# Just generate some known output.
+	echo "show version"
 
-    # Parse backtrace output of all threads looking for source files
-    # that might be useful for debugging the crash.
-    > $TMPFILE
-    i=$nthr
-    while [ "$i" -gt 0 ]; do
-	echo thread apply $i backtrace
-	i=$((i - 1))
-    done >> $TMPFILE
+	# On start kgdb outputs modules it loads, like this one:
+	# "Loaded symbols for /boot/kernel/ng_socket.ko".
+	# Parse these lines to generate the list of modules.
 
-    kgdb $KERNEL $VMCORE < $TMPFILE 2>/dev/null |
-    sed -nEe 's|^.* at (/.*):[0-9]+$|\1|p'
-    > $TMPFILE
-    
-}
+	sed -lnEe 's|^Loaded symbols for (/[^ ].*\.ko)$|\1|p;
+                   /\(kgdb\)/q' > $TMPDIR/modules
 
+	# Find the number of threads from "info threads" command
+	# output. The thread with the max number is printed first.
+	echo "info threads"
+	nthr=`sed -nEe '/^.* [0-9]+ Thread [0-9]+.*$/{
+		          s/^.* ([0-9]+) Thread [0-9]+.*$/\1/p
+		          q
+		        }'`
 
-copy_headers() {
+	# Output backtrace of every thread and parse output looking
+	# for source files. If a source path is not full run
+	# "maintenance info symtabs file"
+	
+	i=$nthr
+	while [ "$i" -gt 0 ]; do
+	    echo thread apply $i backtrace
+	    i=$((i - 1))
+	done
+	# Just generate some known output so we know where we is.
+	echo "show version" 
 
-    dir="$1"
+	> $TMPDIR/sources.nonunique
+	sed -lnEe 's|^.* at +([^:]*):[0-9]+$|\1|p; /GNU gdb.*FreeBSD/q' |
+	awk '{
+          if (/^\//) 
+            print >> "'$TMPDIR/sources.nonunique'"
+          else
+            print "maintenance info symtabs " $0
+        }'
+	# Just generate some known output so we know where we is.
+	echo "show version" 
 
-    # It looks like good idea to tar all headers in sys and
-    # ${MASHINE}/include. For this we need to find srcbase first.
-    > $TMPFILE
-    echo "break fork" >> $TMPFILE
-    echo "quit" >> $TMPFILE    
-    srcbase=`kgdb $KERNEL $VMCORE < $TMPFILE 2>/dev/null |
-             sed -nEe 's|^.*Breakpoint 1 at .* file (.*)/kern/kern_fork.c,.*$|\1|p'`
-    > $TMPFILE
+	# Parse output of "maintenance info symtabs file" commands.
+	# It looks like this one:
+	#  { symtab vm_page.h ((struct symtab *) 0x2d11d8d0)
+	#    dirname /usr/src/sys/vm
+	#    fullname (null)
+	#    blockvector ((struct blockvector *) 0x2d11d690)
+	#    debugformat unknown
+	#  }	
+	awk '$1 == "{" && $2 == "symtab" {file=$3}
+             file && $1 == "dirname"     {print $2 "/" file; file = ""}
+             $1 == "}"                   {file = ""}
+             /GNU gdb.*FreeBSD/          {exit}' >> $TMPDIR/sources.nonunique
 
-    find $srcbase/sys $srcbase/`uname -m`/include -type f -name '*.h' |
-    cpio -pvd "$dir" 2>/dev/null
+	sort -u $TMPDIR/sources.nonunique > $TMPDIR/sources
 
-    ln -s ${srcbase#/}/`uname -m`/include "$dir/machine"
+	# Find srcbase.
+	echo "break fork"
+	srcbase=`sed -nEe '/^.*Breakpoint 1 at .* file .*\/kern\/kern_fork.c,.*$/{
+                             s|^.*Breakpoint 1 at .* file (.*)/kern/kern_fork.c,.*$|\1|p
+                             q
+                           }'`
+	echo ${srcbase#/} > $TMPDIR/srcbase
+	find $srcbase/`uname -m`/include -type f -name '*.h' >> $TMPDIR/sources
+
+	# That is all.
+	echo "quit"
+
+    } < $TMPDIR/fifo |
+    kgdb $KERNEL $VMCORE 2>/dev/null > $TMPDIR/fifo
 }
 
 #
 # Main
 #
 
-while getopts "hd:n:k:m:c:" opt; do
+while getopts "hd:n:k:c:" opt; do
 
     case "$opt" in
 
@@ -220,9 +241,6 @@ while getopts "hd:n:k:m:c:" opt; do
 	k)
 	    KERNEL=$OPTARG
 	    ;;
-	m)
-	    MODULES=$OPTARG
-	    ;;
 	c)
 	    VMCORE=$OPTARG
 	    ;;
@@ -233,7 +251,7 @@ while getopts "hd:n:k:m:c:" opt; do
     esac
 done
 
-mk_tmpfiles
+mk_tmpdir
 
 if [ -n "$DUMPNR" -a -n "$VMCORE" ]; then
     echo "-n and -c options are mutually exclusive" >&2
@@ -327,10 +345,7 @@ elif [ ! -e $KERNEL ]; then
 	exit 1
 fi
 
-# If the user didn't specify a list of modules, then try to find one.
-if [ -z "$MODULES" ]; then
-	find_modules
-fi
+run_kgdb;
 
 mkdir $TMPDIR/$CRASH
 
@@ -338,16 +353,16 @@ mkdir $TMPDIR/$CRASH
     echo $VMCORE
     echo $INFO
 
-    for f in $KERNEL $MODULES; do
+    for f in $KERNEL `cat $TMPDIR/modules`; do
 	echo $f
 	echo $f.symbols
     done
 
-    print_sources
+    cat $TMPDIR/sources
 
 } | cpio -pvd "$TMPDIR/$CRASH" 2>/dev/null
 
-copy_headers "$TMPDIR/$CRASH"
+ln -s `cat $TMPDIR/srcbase`/`uname -m`/include "$TMPDIR/$CRASH/machine"
 
 cat > "$TMPDIR/$CRASH/debug.sh" << EOF
 #!/bin/sh

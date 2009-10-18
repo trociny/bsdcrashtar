@@ -90,8 +90,6 @@ Use the core dump saved in
 instead of the latest core in the core dump directory.
 .It Fl k Ar kernel
 Specify an explicit kernel file.
-.It Fl m Ar modules
-Specify space sepated paths of modules loaded at the moment of crash.
 .It Fl c Ar core
 Specify an explicit core file.
 .El
@@ -110,8 +108,7 @@ platform running FreeBSD of the same major version (abi compatible).
 .Sh AUTHOR
 .An Mikolaj Golub.
 .Sh BUGS
-Not all necessary headers might be archived. Also, as it is rather
-experimental utility and depends on proper parsing of
+As it is rather experimental utility and depends on proper parsing of
 .Xr gdb 1
 output it is highly recommended to check created tar archive if you
 want to be sure it contains all necessary files.
