@@ -362,7 +362,7 @@ ln -s `cat $TMPDIR/srcbase`/`uname -m`/include "$TMPDIR/$CRASH/machine"
 	echo $f.symbols
     done
 
-} | cpio -pvd "$TMPDIR/$CRASH" 2>/dev/null
+} | cpio -pvd "$TMPDIR/$CRASH" 2>/dev/null || :
 
 cat > "$TMPDIR/$CRASH/debug.sh" << EOF
 #!/bin/sh
