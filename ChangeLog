@@ -1,0 +1,11 @@
+bsdcrashtar (0.1.1)
+
+  * Make it work at 9-CURRENT (ignore cpio exit status).
+
+-- Mikolaj Golub <to.my.trociny@gmail.com> 2010/11/20
+
+bsdcrashtar (0.1.0)
+
+  * Archive FreeBSD kernel crash files.
+
+-- Mikolaj Golub <to.my.trociny@gmail.com> 2009/10/18
