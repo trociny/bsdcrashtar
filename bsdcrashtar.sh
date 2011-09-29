@@ -205,9 +205,9 @@ run_kgdb() {
 	sort -u $TMPDIR/sources.nonunique > $TMPDIR/sources
 
 	# Find srcbase.
-	echo "break fork"
-	srcbase=`sed -nEe '/^.*Breakpoint 1 at .* file .*\/kern\/kern_fork.c,.*$/{
-                             s|^.*Breakpoint 1 at .* file (.*)/kern/kern_fork.c,.*$|\1|p
+	echo "break vn_open"
+	srcbase=`sed -nEe '/^.*Breakpoint 1 at .* file .*\/kern\/vfs_vnops.c,.*$/{
+                             s|^.*Breakpoint 1 at .* file (.*)/kern/vfs_vnops.c,.*$|\1|p
                              q
                            }'`
 	echo ${srcbase#/} > $TMPDIR/srcbase
