@@ -1,3 +1,14 @@
+bsdcrashtar (0.1.2)
+
+  * Use kern.bootfile sysctl when looking for kernel.
+
+  * Make it work on 9-RELEASE and CURRENT.
+
+  * Fix the abort due to broken pipe generated when gdb tried to write to
+    the fifo already closed by the other side.
+
+-- Mikolaj Golub <to.my.trociny@gmail.com> 2011/10/02
+
 bsdcrashtar (0.1.1)
 
   * Make it work at 9-CURRENT (ignore cpio exit status).
