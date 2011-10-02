@@ -213,8 +213,9 @@ run_kgdb() {
 	echo ${srcbase#/} > $TMPDIR/srcbase
 	find $srcbase/`uname -m`/include -type f -name '*.h' >> $TMPDIR/sources
 
-	# That is all.
+	# Send quit and wait for gdb to close fifo on its side (to avoid sigpipe).
 	echo "quit"
+	cat > /dev/null
 
     } < $TMPDIR/fifo |
     kgdb $KERNEL $VMCORE 2>/dev/null > $TMPDIR/fifo
