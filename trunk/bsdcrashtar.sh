@@ -218,7 +218,7 @@ run_kgdb() {
 	cat > /dev/null
 
     } < $TMPDIR/fifo |
-    kgdb $KERNEL $VMCORE 2>/dev/null > $TMPDIR/fifo
+    kgdb $KERNEL $VMCORE 2>/dev/null | tee $TMPDIR/kgdb.out > $TMPDIR/fifo
 }
 
 #
@@ -349,6 +349,8 @@ fi
 run_kgdb;
 
 mkdir $TMPDIR/$CRASH
+
+mv $TMPDIR/kgdb.out $TMPDIR/$CRASH
 
 ln -s `cat $TMPDIR/srcbase`/`uname -m`/include "$TMPDIR/$CRASH/machine"
 

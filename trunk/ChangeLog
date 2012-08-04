@@ -1,3 +1,9 @@
+bsdcrashtar (0.X.X)
+
+  * Archive also the kgdb output.
+
+-- Mikolaj Golub <to.my.trociny@gmail.com> 20XX/XX/XX
+
 bsdcrashtar (0.1.2)
 
   * Use kern.bootfile sysctl when looking for kernel.
