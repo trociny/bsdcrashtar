@@ -71,6 +71,7 @@ CRASH=
 
 usage()
 {
+
     echo
     echo "usage: $PROGNAME [options] [<crash.tar.gz>]"
     echo
@@ -89,7 +90,8 @@ usage()
 # Create directory we will use for storing temporary files and
 # data. Set trap to remove it on exit.
 
-mk_tmpdir () {
+mk_tmpdir ()
+{
 
     if ! TMPDIR=`mktemp -dt $PROGNAME`; then
 	echo "Can't create tmp directory" >&2
@@ -104,8 +106,8 @@ mk_tmpdir () {
 
 # Find kernel.
 
-find_kernel() {
-
+find_kernel()
+{
     local ivers k kvers
 
     ivers=$(awk '
@@ -138,8 +140,8 @@ find_kernel() {
 # Run kgdb and generate all info we need looking for files we want to
 # archive.
 
-run_kgdb() {
-
+run_kgdb()
+{
     local nthr i
 
     # We run kgdb redirecting its output to fifo and read this output
