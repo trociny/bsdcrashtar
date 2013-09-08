@@ -157,7 +157,7 @@ run_kgdb()
 	# "Loaded symbols for /boot/kernel/ng_socket.ko".
 	# Parse these lines to generate the list of modules.
 
-	sed -lnEe 's|^Loaded symbols for (/[^ ].*\.ko)$|\1|p;
+	sed -lnEe 's|^Loaded symbols for (/[^ ].*\.ko)(\.symbols)?$|\1|p;
                    /\(kgdb\)/q' > $TMPDIR/modules
 
 	# Find the number of threads from "info threads" command
