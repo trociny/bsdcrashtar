@@ -1,0 +1,114 @@
+.\" Copyright (c) 2009 Mikolaj Golub.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd October 17, 2009
+.Dt BSDCRASHTAR 8
+.Os
+.Sh NAME
+.Nm bsdcrashtar
+.Nd "archive kernel crash files"
+.Sh SYNOPSIS
+.Nm
+.Op options 
+.Op <crash.tar.gz>
+.Sh DESCRIPTION
+The
+.Nm
+utility creates tar a archive that contains all files needed for
+debugging FreeBSD kernel crash (vmcore, kernel, loaded modules,
+sources that appear in backtrace). This is useful for debugging a
+crash on another host, sending it to developers or if you are going to
+upgrade the kernel on crashed host but would like to keep crashdump in
+case the developers ask you to provide additional info.
+.Pp
+Created tar archive contains also a script that when being run
+inside unpacked archive will give
+.Xr kgdb 1
+session with crash core loaded in it. The script should be run with
+root privileges because it does
+.Xr chroot 8
+before starting
+.Xr kgdb 1 .
+
+By default,
+.Nm
+archives the most recent core dump in the core dump directory. A
+specific core dump may be specified via either the
+.Ar core
+or
+.Ar dumpnr
+arguments.
+Once
+.Nm
+has located a core dump, it analyzes the core dump to determine the
+exact version of the kernel that generated the core.  It then looks
+for a matching kernel file under each of the subdirectories in
+.Pa /boot .
+The location of the kernel file can also be explicitly provided via the
+.Ar kernel
+argument. By default the resulting tar archived is stored in the core
+dump directory with a name
+.Pa crash.XX.tar.gz .
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl h
+Print the minihelp and exit.
+.It Fl d Ar crashdir
+Specify an alternate core dump directory.
+The default crash dump directory is 
+.Pa /var/crash .
+.It Fl n Ar dumpnr
+Use the core dump saved in
+.Pa vmcore. Ns Ar dumpnr
+instead of the latest core in the core dump directory.
+.It Fl k Ar kernel
+Specify an explicit kernel file.
+.It Fl c Ar core
+Specify an explicit core file.
+.El
+.Sh WARNING
+As a core file presents a content of a kernel virtual memory at the
+moment of the crash it might contain information you would not like to
+become public. So think twice before giving the access to a core to
+other person.
+.Sh LIMITATIONS
+You can debug an archived crash only on a host of the same hardware
+platform running FreeBSD of the same major version (abi compatible).
+.Sh SEE ALSO
+.Xr crashinfo 8 ,
+.Xr savecore 8 ,
+.Xr textdump 4 .
+.Sh AUTHOR
+.An Mikolaj Golub.
+.Sh BUGS
+As it is rather experimental utility and depends on proper parsing of
+.Xr gdb 1
+output it is highly recommended to check created tar archive if you
+want to be sure it contains all necessary files.
